@@ -1,0 +1,78 @@
+name: Build For Release
+
+on:
+  push:
+    tags:
+      - v*
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}-${{ matrix.os_name }}
+    runs-on: ${{ matrix.runner_os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - arch: x86_64
+            os_name: linux
+            runner_os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+
+          # Linux aarch64
+          - arch: aarch64
+            os_name: linux
+            runner_os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+
+          # Windows x86_64
+          - arch: x86_64
+            os_name: windows
+            suffix: .exe
+            runner_os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+          # Windows aarch64
+          - arch: aarch64
+            os_name: windows
+            suffix: .exe
+            runner_os: windows-latest
+            target: aarch64-pc-windows-msvc
+
+          # macOS x86_64
+          - arch: x86_64
+            os_name: macos
+            runner_os: macos-latest
+            target: x86_64-apple-darwin
+
+          # macOS aarch64
+          - arch: aarch64
+            os_name: macos
+            runner_os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build
+        run: cross build --release --target ${{ matrix.target }}
+
+
+      - name: Prepare binary
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/shardy* dist/shardy-${{ matrix.arch }}-${{matrix.os_name}}${{ matrix.suffix }}
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+          name: shardy-${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
