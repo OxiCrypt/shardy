@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 #[allow(dead_code)]
 mod keyfile;
 #[allow(dead_code)]

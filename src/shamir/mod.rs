@@ -21,19 +21,19 @@ fn make_prime() -> U512 {
     Uint::from_be_hex("10000000000000000000000000000000000000000000000000000000000000129")
     // This will always produce a valid biguint
 }
-fn gen_polynomial(secret: &U512, degree: &u8, prime: &U512) -> Vec<U512> {
-    let mut coefficients: Vec<U512> = Vec::with_capacity(*degree as usize);
+fn gen_polynomial(secret: &U512, degree: u8, prime: &U512) -> Vec<U512> {
+    let mut coefficients: Vec<U512> = Vec::with_capacity(degree as usize);
     coefficients.push(*secret);
-    for _ in 1..=degree - 1 {
-        coefficients.push(U512::from_be_slice(&random::<[u8; 64]>()) % *prime)
+    for _ in 0..degree - 1 {
+        coefficients.push(U512::from_be_slice(&random::<[u8; 64]>()) % *prime);
     }
     coefficients
 }
 
-fn compute_poly(coefficients: &[U512], x: &u8, p: &U512) -> Result<U512, ReconError> {
+fn compute_poly(coefficients: &[U512], x: u8, p: &U512) -> Result<U512, ReconError> {
     let mut result = U512::ZERO;
 
-    let x = U512::from_u8(*x);
+    let x = U512::from_u8(x);
     for coefficient in coefficients.iter().rev() {
         result = (result * x).add_mod(coefficient, &uint_to_nz_uint(p)?);
     }
@@ -58,25 +58,25 @@ fn reconstruct_secret_mod(shares: &[(u8, U512)], p: &U512, req: u8) -> Result<I5
     if n < req as usize {
         return Err(ReconError::TooFewShares(req));
     }
-    let p_int = uint_to_nz_int(p)?;
-    let p_uint = uint_to_nz_uint(p)?;
+    let p_signed = uint_to_nz_int(p)?;
+    let p_unsigned = uint_to_nz_uint(p)?;
     let mut secret = I512::ZERO;
 
     for i in 0..n {
         let (xi, yi) = shares[i];
         let xi = Uint::from_u8(xi);
-        let mut term = *yi.rem(&p_uint).as_int();
+        let mut term = *yi.rem(&p_unsigned).as_int();
 
-        for (j, _) in shares.iter() {
+        for (j, _) in shares {
             if i != *j as usize {
                 let xj = U512::from_u8(*j);
-                let numerator = (*U512::ZERO.as_int() - *xj.as_int()).rem(&p_int);
-                let denominator = ((xi - xj).rem(&p_uint) + p_uint.get()).rem(&p_uint);
-                term = (term * numerator % p_int) * mod_inverse(p, &denominator)? % p_int;
+                let numerator = (*U512::ZERO.as_int() - *xj.as_int()).rem(&p_signed);
+                let denominator = ((xi - xj).rem(&p_unsigned) + p_unsigned.get()).rem(&p_unsigned);
+                term = (term * numerator % p_signed) * mod_inverse(p, &denominator)? % p_signed;
             }
         }
 
-        secret = (secret + term) % p_int;
+        secret = (secret + term) % p_signed;
     }
 
     Ok(secret)
