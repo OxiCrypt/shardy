@@ -1,23 +1,83 @@
-use num_bigint::BigInt;
-fn shamir_split(threshold: u8) {
-    let prime: BigInt = make_prime();
+use std::ops::ShrAssign;
+
+use crypto_bigint::{I512, NonZero, U512, Uint};
+use rand::random;
+pub enum ReconError {
+    TooFewShares(u8), // Signifies too few shares to compute polynomial
+    Contradicting,    // Signifies one or more points contradict
+    ModError,         // Signifies error where modulus is zero
 }
-fn make_prime() -> BigInt {
+fn uint_to_nz_int(n: &U512) -> Result<NonZero<I512>, ReconError> {
+    n.as_int().to_nz().ok_or(ReconError::ModError)
+}
+fn uint_to_nz_uint(n: &U512) -> Result<NonZero<U512>, ReconError> {
+    n.to_nz().ok_or(ReconError::ModError)
+}
+fn shamir_split(_threshold: u8) {
+    let _prime = make_prime();
+}
+fn make_prime() -> U512 {
     // What you will read is the smallest prime above 2^256. I will not be using Mersenne primes because they will be much bigger and slower
-    BigInt::parse_bytes(
-        b"115792089237316195423570985008687907853269984665640564039457584007913129640233",
-        10,
-    )
-    .unwrap()
+    Uint::from_be_hex("10000000000000000000000000000000000000000000000000000000000000129")
     // This will always produce a valid biguint
 }
-fn positive_modp(x: BigInt, p: &BigInt) -> BigInt {
-    ((x % p) + p) % p
-}
-fn compute_poly(coefficients: &[BigInt], x: &BigInt, p: &BigInt) -> BigInt {
-    let mut result = BigInt::ZERO;
-    for coefficient in coefficients.iter().rev() {
-        result = positive_modp(result * x + coefficient, p);
+fn gen_polynomial(secret: &U512, degree: &u8, prime: &U512) -> Vec<U512> {
+    let mut coefficients: Vec<U512> = Vec::with_capacity(*degree as usize);
+    coefficients.push(*secret);
+    for _ in 1..=degree - 1 {
+        coefficients.push(U512::from_be_slice(&random::<[u8; 64]>()) % *prime)
     }
-    result
+    coefficients
+}
+
+fn compute_poly(coefficients: &[U512], x: &u8, p: &U512) -> Result<U512, ReconError> {
+    let mut result = U512::ZERO;
+
+    let x = U512::from_u8(*x);
+    for coefficient in coefficients.iter().rev() {
+        result = (result * x).add_mod(coefficient, &uint_to_nz_uint(p)?);
+    }
+    Ok(result)
+}
+fn mod_inverse(prime: &U512, a: &U512) -> Result<U512, ReconError> {
+    let mut exp: U512 = *prime - U512::from_u8(2);
+    let prime = uint_to_nz_uint(prime)?;
+    let mut result = U512::ONE;
+    let mut base = a % prime;
+    while exp.is_nonzero().to_bool() {
+        if exp.is_odd().to_bool() {
+            result = result.mul_mod(&base, &prime);
+        }
+        base = base.mul_mod(&base, &prime);
+        exp.shr_assign(1);
+    }
+    Ok(result)
+}
+fn reconstruct_secret_mod(shares: &[(u8, U512)], p: &U512, req: u8) -> Result<I512, ReconError> {
+    let n = shares.len();
+    if n < req as usize {
+        return Err(ReconError::TooFewShares(req));
+    }
+    let p_int = uint_to_nz_int(p)?;
+    let p_uint = uint_to_nz_uint(p)?;
+    let mut secret = I512::ZERO;
+
+    for i in 0..n {
+        let (xi, yi) = shares[i];
+        let xi = Uint::from_u8(xi);
+        let mut term = *yi.rem(&p_uint).as_int();
+
+        for (j, _) in shares.iter() {
+            if i != *j as usize {
+                let xj = U512::from_u8(*j);
+                let numerator = (*U512::ZERO.as_int() - *xj.as_int()).rem(&p_int);
+                let denominator = ((xi - xj).rem(&p_uint) + p_uint.get()).rem(&p_uint);
+                term = (term * numerator % p_int) * mod_inverse(p, &denominator)? % p_int;
+            }
+        }
+
+        secret = (secret + term) % p_int;
+    }
+
+    Ok(secret)
 }
