@@ -8,7 +8,7 @@ These are plans for this project.
 - [x] Revise specification of format
 - [x] Implement generation of keyfile 
 - [ ] Implement hashing of keyfile with BLAKE3
-- [ ] Implement splitting of keyfile with Shamir's Secret Sharing
+- [x] Implement splitting of keyfile with Shamir's Secret Sharing
 - [ ] Implement Encryption with XChaCha20-Poly1305
 - [ ] Implement Decryption
 - [ ] Implement CLI
