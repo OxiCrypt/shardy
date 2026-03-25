@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+blake3 = "1.8.3"
 crypto-bigint = "0.7.1"
 rand = "0.10.0"
 zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
