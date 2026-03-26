@@ -6,6 +6,6 @@ pub fn gen_keyfile() -> Zeroizing<[u8; 64]> {
     fill(keybytes.as_mut());
     keybytes
 }
-pub fn hash_keyfile(keyfile: Zeroizing<[u8; 64]>) -> Hash {
+pub fn hash_keyfile(keyfile: &Zeroizing<[u8; 64]>) -> Hash {
     hash(keyfile.as_ref())
 }

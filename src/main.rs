@@ -1,5 +1,7 @@
 #![warn(clippy::pedantic)]
 #[allow(dead_code)]
+mod ecdc;
+#[allow(dead_code)]
 mod keyfile;
 #[allow(dead_code)]
 mod shamir;
