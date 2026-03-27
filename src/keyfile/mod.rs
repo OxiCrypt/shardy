@@ -1,4 +1,5 @@
 //! Tools related to the keyfile
+use blake3::{Hash, hash};
 use rand::fill;
 use zeroize::Zeroizing;
 // Generate a 64-byte random keyfile
