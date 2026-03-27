@@ -8,6 +8,7 @@ use std::{
     io::{Read, Seek, Write},
 };
 use zeroize::Zeroizing;
+/// This function encrypts a file
 pub fn encrypt_file(
     plaintext: &mut File,
     file: &mut File,

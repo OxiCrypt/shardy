@@ -1,3 +1,4 @@
+//! This module implements Shamir's Secret Sharing.
 mod make_shares;
 mod recover_file;
 use crypto_bigint::{I512, NonZero, U512, Uint};

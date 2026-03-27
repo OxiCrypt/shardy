@@ -8,6 +8,7 @@ use std::{
     io::{Read, Seek, Write},
 };
 use zeroize::Zeroizing;
+/// This function decrypts a file.
 pub fn decrypt_file(
     ciphertext: &mut File,
     output: &mut File,

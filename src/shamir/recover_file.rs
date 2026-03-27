@@ -2,6 +2,8 @@ use super::ReconError;
 use super::{uint_to_nz_int, uint_to_nz_uint};
 use crypto_bigint::{I512, U512, Uint};
 use std::ops::ShrAssign;
+/// Finds the modular inverse of a given a prime number is the modulus.
+/// Uses Fermat's little theorem(Fermat my GOAT)
 fn mod_inverse(prime: &U512, a: &U512) -> Result<U512, ReconError> {
     let mut exp: U512 = *prime - U512::from_u8(2);
     let prime = uint_to_nz_uint(prime)?;
@@ -16,6 +18,7 @@ fn mod_inverse(prime: &U512, a: &U512) -> Result<U512, ReconError> {
     }
     Ok(result)
 }
+// Reconstructs the secret from points on the polynomial. Uses Lagrange Interpolation
 pub fn reconstruct_secret_mod(
     shares: &[(u8, U512)],
     p: &U512,
