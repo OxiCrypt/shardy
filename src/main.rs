@@ -48,6 +48,8 @@ impl EncOrDec {
 enum MainError {
     /// Represents obviously false things that will never occur
     Contradiction,
+    /// Represents a error in the program
+    InternalError(String),
     /// Represents stupid input that isn't usable for this program
     InvalidInput(String),
 }
@@ -55,8 +57,13 @@ impl std::fmt::Debug for MainError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MainError::Contradiction => write!(f, "This Error should not exist."),
-            MainError::InvalidInput(msg) => write!(f, "{msg}"),
+            MainError::InvalidInput(msg) | MainError::InternalError(msg) => write!(f, "{msg}"),
         }
+    }
+}
+impl From<shamir::ReconError> for MainError {
+    fn from(_: shamir::ReconError) -> Self {
+        Self::InternalError("Error Reconstructing Key.".to_string())
     }
 }
 fn main() -> Result<(), MainError> {
