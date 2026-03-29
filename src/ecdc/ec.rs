@@ -22,13 +22,13 @@ pub fn encrypt_file(
     aad.extend_from_slice(&MAGIC_BYTES);
     aad.extend_from_slice(nonce.as_slice());
     aad.extend_from_slice(&salt);
-    let mut plaintext_vec = Vec::new();
+    let mut plaintext_vec = Zeroizing::new(Vec::new());
     plaintext.rewind()?;
-    plaintext.read_to_end(&mut plaintext_vec)?;
+    plaintext.read_to_end(plaintext_vec.as_mut())?;
     let Ok(ciphertext) = cipher.encrypt(
         &nonce,
         Payload {
-            msg: &plaintext_vec[..],
+            msg: plaintext_vec.as_slice(),
             aad: &aad[..],
         },
     ) else {
