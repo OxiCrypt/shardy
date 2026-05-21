@@ -4,10 +4,28 @@ mod recover_file;
 use crypto_bigint::{I512, NonZero, U512, Uint};
 pub use make_shares::shamir_split;
 pub use recover_file::reconstruct_secret_mod;
+use std::{ptr::write_volatile, sync::atomic};
+use zeroize::Zeroize;
 pub enum ReconError {
     TooFewShares(u8), // Signifies too few shares to compute polynomial
     Contradicting,    // Signifies one or more points contradict
     ModError,         // Signifies error where modulus is zero
+}
+pub struct Coeffs(Vec<U512>);
+impl Zeroize for Coeffs {
+    fn zeroize(&mut self) {
+        for i in &mut self.0 {
+            unsafe {
+                write_volatile(&raw mut *i, U512::ZERO);
+            }
+        }
+        atomic::compiler_fence(atomic::Ordering::SeqCst);
+    }
+}
+impl Drop for Coeffs {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
 }
 // Helper Functions
 // This is a helper function because I could not find a way to get const working
