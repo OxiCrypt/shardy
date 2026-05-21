@@ -4,7 +4,10 @@ mod recover_file;
 use crypto_bigint::{I512, NonZero, U512, Uint};
 pub use make_shares::shamir_split;
 pub use recover_file::reconstruct_secret_mod;
-use std::{ptr::write_volatile, sync::atomic};
+use std::{
+    ptr::{from_mut, write_volatile},
+    sync::atomic,
+};
 use zeroize::Zeroize;
 pub enum ReconError {
     TooFewShares(u8), // Signifies too few shares to compute polynomial
@@ -16,7 +19,7 @@ impl Zeroize for Coeffs {
     fn zeroize(&mut self) {
         for i in &mut self.0 {
             unsafe {
-                write_volatile(&raw mut *i, U512::ZERO);
+                write_volatile(from_mut(i), U512::ZERO);
             }
         }
         atomic::compiler_fence(atomic::Ordering::SeqCst);
