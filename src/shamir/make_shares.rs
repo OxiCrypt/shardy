@@ -1,20 +1,22 @@
-use super::Coeffs;
 use super::ReconError;
 use super::make_prime;
 use super::uint_to_nz_uint;
-use crypto_bigint::{NonZero, U512};
+use super::{Coeffs, Shares};
+use crypto_bigint::U512;
 use rand::random;
+use zeroize::Zeroizing;
 /// Public function to expose splitting functionality
 pub fn shamir_split(
-    threshold: NonZero<u8>,
-    shares: NonZero<u8>,
-    secret: &U512,
-) -> Result<Vec<(u8, U512)>, ReconError> {
+    threshold: std::num::NonZero<u8>,
+    shares: std::num::NonZero<u8>,
+    secret: &Zeroizing<[u8; 32]>,
+) -> Result<Shares, ReconError> {
+    let secret = U512::from_be_slice(secret.as_ref());
     let prime = make_prime();
-    let coeffs = gen_polynomial(secret, threshold.get() - 1, &prime);
-    let mut result: Vec<(u8, U512)> = Vec::new();
+    let coeffs = gen_polynomial(&secret, threshold.get() - 1, &prime);
+    let mut result: Shares = Shares(Vec::with_capacity(shares.get() as usize));
     for i in 1..=shares.get() {
-        result.push((i, compute_poly(&coeffs, i, &prime)?));
+        result.0.push((i, compute_poly(&coeffs, i, &prime)?));
     }
     Ok(result)
 }
@@ -25,6 +27,8 @@ fn gen_polynomial(secret: &U512, degree: u8, prime: &U512) -> Coeffs {
     for _ in 0..degree {
         coefficients
             .0
+            // I SEE YOU CRYPTO NERDS ABOUT TO WRITE AN ESSAY ABOUT MODULO BIAS
+            // IT'S TINY
             .push(U512::from_be_slice(&random::<[u8; 64]>()) % *prime);
     }
     coefficients

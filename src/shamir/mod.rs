@@ -13,6 +13,7 @@ pub enum ReconError {
     TooFewShares(u8), // Signifies too few shares to compute polynomial
     Contradicting,    // Signifies one or more points contradict
     ModError,         // Signifies error where modulus is zero
+    DuplicateShares,  // Signifies error where two identical
 }
 pub struct Coeffs(Vec<U512>);
 impl Zeroize for Coeffs {
@@ -28,6 +29,27 @@ impl Zeroize for Coeffs {
 impl Drop for Coeffs {
     fn drop(&mut self) {
         self.zeroize();
+    }
+}
+pub struct Shares(Vec<(u8, U512)>);
+impl Zeroize for Shares {
+    fn zeroize(&mut self) {
+        for i in &mut self.0 {
+            unsafe {
+                write_volatile(&raw mut i.1, U512::ZERO);
+            }
+        }
+        atomic::compiler_fence(atomic::Ordering::SeqCst);
+    }
+}
+impl Drop for Shares {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+impl Shares {
+    pub fn as_slice(&self) -> &[(u8, U512)] {
+        &self.0.as_slice()
     }
 }
 // Helper Functions

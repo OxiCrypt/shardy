@@ -18,24 +18,28 @@ pub fn decrypt_file(
     ciphertext.rewind()?;
     ciphertext.read_to_end(ciphertext_vec.as_mut())?;
     if !ciphertext_vec.as_slice().starts_with(&MAGIC_BYTES) {
-        return Err(EncError);
+        return Err(EncError::Encryption(
+            "File does not start with magic bytes. Are you sure this is a shardy file?".to_string(),
+        ));
     }
     #[allow(clippy::no_effect_underscore_binding)]
-    let nonce: &XNonce = XNonce::from_slice(&ciphertext_vec[8..32]);
-    let salt = &ciphertext_vec.as_slice()[32..48];
+    let threshold = ciphertext_vec.as_slice()[4];
+    let nonce: &XNonce = XNonce::from_slice(&ciphertext_vec[5..29]);
     let cipher = XChaCha20Poly1305::new_from_slice(key.as_ref())?;
     let mut aad = Vec::new();
     aad.extend_from_slice(&MAGIC_BYTES);
+    aad.extend_from_slice(&[threshold]);
     aad.extend_from_slice(nonce.as_slice());
-    aad.extend_from_slice(salt);
     let Ok(plaintext) = cipher.decrypt(
         nonce,
         Payload {
-            msg: &ciphertext_vec[48..],
+            msg: &ciphertext_vec[29..],
             aad: &aad[..],
         },
     ) else {
-        return Err(EncError);
+        return Err(EncError::Encryption(
+            "Something went wrong in Decryption. That's all wee know.".to_string(),
+        ));
     };
     output.rewind()?;
     output.set_len(0)?;
