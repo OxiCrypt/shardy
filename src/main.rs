@@ -22,26 +22,31 @@ use std::{
 };
 use zeroize::{Zeroize, Zeroizing};
 #[derive(Parser)]
+#[command(name = "shardy")]
+#[command(about = "Encrypts using random key, then splits into shares.")]
+#[command(version)]
 struct Shardy {
-    #[arg(short, long)]
+    #[arg(short, long, help = "File to be en/decrypted")]
     input: PathBuf,
-    #[arg(short, long)]
+    #[arg(short, long, help = "En/decrypted file")]
     output: Option<PathBuf>,
     #[command(subcommand)]
     command: EncOrDec,
 }
 #[derive(Subcommand)]
 enum EncOrDec {
+    #[command(about = "Encrypt and split key into shares")]
     Encrypt {
-        #[arg(short, long)]
+        #[arg(short, long, help = "Prefix of generated shares' names")]
         share_prefix: String,
-        #[arg(short, long)]
+        #[arg(short, long, help = "Number of shares to export")]
         num_shares_out: NonZero<u8>,
-        #[arg(short, long)]
+        #[arg(short, long, help = "Number of shares required to decrypt.")]
         min_shares: NonZero<u8>,
     },
+    #[command(about = "Recover key from shares and decrypt")]
     Decrypt {
-        #[arg(short, long)]
+        #[arg(short, long, help = "Prefix of share filenames.")]
         share_prefix: String,
     },
 }
