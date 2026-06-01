@@ -2,21 +2,16 @@
 mod ecdc;
 mod keyfile;
 mod shamir;
-use crate::shamir::ReconError;
-
 use self::EncOrDec::{Decrypt, Encrypt};
 use clap::{Parser, Subcommand};
 use crypto_bigint::U512;
 use ecdc::{decrypt_file, encrypt_file};
 use regex::Regex;
-use shamir::{reconstruct_secret_mod, shamir_split};
-use std::io::{Read, Seek, SeekFrom};
+use shamir::{ReconError, reconstruct_secret_mod, shamir_split};
+use std::fs::{self, File};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::num::NonZero;
 use std::path::PathBuf;
-use std::{
-    fs::{self, File},
-    io::Write,
-};
 use zeroize::{Zeroize, Zeroizing};
 #[derive(Parser)]
 #[command(name = "shardy")]
@@ -101,7 +96,6 @@ fn get_shares(share_prefix: &str) -> Result<Vec<File>, MainError> {
 
     Ok(files)
 }
-#[allow(clippy::too_many_lines)]
 fn main() -> Result<(), MainError> {
     let cli_options = Shardy::parse();
     match cli_options.command {
@@ -117,45 +111,31 @@ fn main() -> Result<(), MainError> {
             ));
             }
             let keyfile = keyfile::gen_keyfile();
-            let Ok(mut input_file) = File::open(&cli_options.input) else {
-                return Err(MainError::InvalidInput("Invalid Path: Input".to_string()));
-            };
-            let Ok(mut output_file) = File::create(match cli_options.output {
-                Some(o) => o,
-                None => cli_options.input.with_added_extension("shdy"),
-            }) else {
-                return Err(MainError::InvalidInput("Invalid Path: Output".to_string()));
-            };
-            match encrypt_file(&mut input_file, &mut output_file, &keyfile, min_shares) {
-                Ok(()) => (),
-                Err(e) => {
-                    return Err(MainError::InternalError(format!("{e:?}")));
-                }
-            }
+            let mut input_file = File::open(&cli_options.input)
+                .map_err(|_| MainError::InvalidInput("Invalid Path: Input".to_string()))?;
+            let mut output_file = File::create(
+                cli_options
+                    .output
+                    .map_or(cli_options.input.with_added_extension("shdy"), |o| o),
+            )
+            .map_err(|_| MainError::InvalidInput("Invalid Path: Output".to_string()))?;
+            encrypt_file(&mut input_file, &mut output_file, &keyfile, min_shares)
+                .map_err(|e| MainError::InternalError(format!("{e:?}")))?;
             println!("Encryption Complete! Splitting Shares...");
-            let Ok(shares) = shamir_split(min_shares, num_shares_out, &keyfile) else {
-                return Err(MainError::InternalError(
-                    "What did you do in GDB?".to_string(),
-                ));
-            };
+            let shares = shamir_split(min_shares, num_shares_out, &keyfile)
+                .map_err(|_| MainError::InternalError("What did you do in GDB?".to_string()))?;
             for (index, share) in shares.as_slice().iter().enumerate() {
                 let mut to_write = [0u8; 65];
                 to_write[0] = share.0;
                 let slice_of_i = share.1.to_be_bytes();
                 to_write[1..65].copy_from_slice(&slice_of_i.as_slice()[..(65 - 1)]);
                 let target = format!("{share_prefix}{index}.shds");
-                let Ok(mut out) = File::create(target) else {
-                    return Err(MainError::InvalidInput(
-                        "Something went wrong while creating a share. Most likely: Permissions."
-                            .to_string(),
-                    ));
-                };
-                if out.write(&to_write).is_err() {
-                    return Err(MainError::InternalError(
-                        "Failed to Write share, but share created. Most likely: Write interrupted."
-                            .to_string(),
-                    ));
-                }
+                let mut out = File::create(target).map_err(|_| {
+                    MainError::InvalidInput("Share creation failed, check permissions.".to_string())
+                })?;
+                out.write(&to_write).map_err(|_| {
+                    MainError::InternalError("Share writing failed, interrupted.".to_string())
+                })?;
                 to_write.zeroize();
             }
         }
@@ -169,25 +149,18 @@ fn main() -> Result<(), MainError> {
                     )));
                 }
                 let mut rawbytes = [0u8; 65];
-                if rawshare.read_exact(&mut rawbytes).is_err() {
-                    return Err(MainError::InternalError(format!(
-                        "Failed to read share {i}"
-                    )));
-                }
+                rawshare
+                    .read_exact(&mut rawbytes)
+                    .map_err(|_| MainError::InternalError(format!("Failed to read share {i}")))?;
                 shares_usable.push((rawbytes[0], U512::from_be_slice(&rawbytes[1..65])));
                 rawbytes.zeroize();
             }
-            let Ok(mut ciphertext) = File::open(&cli_options.input) else {
-                return Err(MainError::InternalError(
-                    "Failed to open provided shdy file".to_string(),
-                ));
-            };
-            if ciphertext.seek(SeekFrom::Start(4)).is_err() {
-                return Err(MainError::InternalError(
-                    "Failed to seek to threshold byte".to_string(),
-                ));
-            }
-
+            let mut ciphertext = File::open(&cli_options.input).map_err(|_| {
+                MainError::InternalError("Failed to open provided shdy file".to_string())
+            })?;
+            ciphertext.seek(SeekFrom::Start(4)).map_err(|_| {
+                MainError::InternalError("Failed to seek to threshold byte".to_string())
+            })?;
             let mut threshold = [0u8; 1];
             if ciphertext.read_exact(&mut threshold).is_err() {
                 return Err(MainError::InternalError(
@@ -203,7 +176,7 @@ fn main() -> Result<(), MainError> {
                         }
                         ReconError::ModError => {
                             return Err(MainError::InternalError(
-                                "Invariants failed. this is a bug on our end.".to_string(),
+                                "What did you do in GDB?".to_string(),
                             ));
                         }
                         ReconError::TooFewShares(r) => {
