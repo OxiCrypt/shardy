@@ -71,8 +71,8 @@ jobs:
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*
-          name: shardy-${{ matrix.target }}
+          files: dist/shardy-${{ matrix.arch }}-${{matrix.os_name}}${{ matrix.suffix }}/*
+          name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
