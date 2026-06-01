@@ -11,6 +11,6 @@ These are plans for this project.
 - [x] Implement splitting of keyfile with Shamir's Secret Sharing
 - [x] Implement Encryption with XChaCha20-Poly1305
 - [x] Implement Decryption
-- [ ] Implement CLI
+- [x] Implement CLI
 - [ ] Bug Hunt
 - [ ] Audit
