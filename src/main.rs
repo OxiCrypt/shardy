@@ -7,11 +7,8 @@ use crate::shamir::ReconError;
 use self::EncOrDec::{Decrypt, Encrypt};
 use clap::{Parser, Subcommand};
 use crypto_bigint::U512;
-#[allow(unused_imports)]
-#[allow(dead_code)]
-use ecdc::{EncError, decrypt_file, encrypt_file};
+use ecdc::{decrypt_file, encrypt_file};
 use regex::Regex;
-#[allow(unused_imports)]
 use shamir::{reconstruct_secret_mod, shamir_split};
 use std::io::{Read, Seek, SeekFrom};
 use std::num::NonZero;
