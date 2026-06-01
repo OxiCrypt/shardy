@@ -1,6 +1,6 @@
 use super::ReconError;
-use super::{uint_to_nz_int, uint_to_nz_uint};
-use crypto_bigint::{I512, U512};
+use super::{make_prime, uint_to_nz_uint};
+use crypto_bigint::U512;
 use std::ops::ShrAssign;
 
 /// Finds the modular inverse of `a` given that `prime` is the modulus.
@@ -26,19 +26,14 @@ fn mod_inverse(prime: &U512, a: &U512) -> Result<U512, ReconError> {
 ///
 /// `shares` is a slice of (x, y) pairs where x is the share index (1-based) and
 /// y is the share value. `p` is the prime modulus. `req` is the minimum threshold.
-pub fn reconstruct_secret_mod(
-    shares: &[(u8, U512)],
-    p: &U512,
-    req: u8,
-) -> Result<I512, ReconError> {
-    let n = shares.len();
-
-    if n < req as usize {
+pub fn reconstruct_secret_mod(shares: &[(u8, U512)], req: u8) -> Result<U512, ReconError> {
+    if shares.len() < req as usize {
         return Err(ReconError::TooFewShares(req));
     }
 
-    // Bug fix: check for duplicate x-coordinates up front to avoid
-    // a zero denominator (and infinite loop) in mod_inverse.
+    let shares = &shares[..req as usize];
+    let n = shares.len();
+
     for i in 0..n {
         for j in (i + 1)..n {
             if shares[i].0 == shares[j].0 {
@@ -47,46 +42,36 @@ pub fn reconstruct_secret_mod(
         }
     }
 
-    let p_signed = uint_to_nz_int(p)?;
-    let p_unsigned = uint_to_nz_uint(p)?;
-    let mut secret = I512::ZERO;
+    let p = make_prime();
+    let p_nz = uint_to_nz_uint(&p)?;
+
+    let mut secret = U512::ZERO;
 
     for i in 0..n {
         let (xi, yi) = shares[i];
         let xi = U512::from_u8(xi);
 
-        // Start the basis term from yi mod p, cast to signed arithmetic.
-        let mut term = *yi.rem(&p_unsigned).as_int();
+        let mut term = yi % p;
 
-        // Bug fix: iterate by index `j` (not by destructuring the share tuple),
-        // so the `i != j` guard compares indices, not x-coordinate values.
-        for j in 0..n {
+        for (j, share) in shares.iter().enumerate() {
             if i != j {
-                let (xj, _) = shares[j];
+                let (xj, _) = *share;
                 let xj = U512::from_u8(xj);
 
-                // numerator = (0 - xj) mod p  →  signed
-                let numerator = (*U512::ZERO.as_int() - *xj.as_int()).rem(&p_signed);
+                // numerator = (0 - xj) mod p
+                let numerator = p - xj;
 
-                // denominator = (xi - xj) mod p  →  unsigned (always positive after reduction)
-                let denominator = ((xi - xj).rem(&p_unsigned) + p_unsigned.get()).rem(&p_unsigned);
+                // denominator = (xi - xj) mod p (safe wrap)
+                let denominator = if xi >= xj { xi - xj } else { p - (xj - xi) };
 
-                // Bug fix: convert the U512 inverse to I512 before multiplying
-                // so we stay in signed arithmetic throughout.
-                let inv = *mod_inverse(p, &denominator)?.as_int();
+                let inv = mod_inverse(&p, &denominator)?;
 
-                term = term * numerator % p_signed;
-                term = term * inv % p_signed;
+                term = term.mul_mod(&numerator, &p_nz);
+                term = term.mul_mod(&inv, &p_nz);
             }
         }
 
-        secret = (secret + term) % p_signed;
-    }
-
-    // Bug fix: normalise the result into [0, p) because intermediate signed
-    // reductions can leave `secret` negative.
-    if secret.is_negative().to_bool() {
-        secret = (secret + p_signed.get()).rem(&p_signed);
+        secret = secret.add_mod(&term, &p_nz);
     }
 
     Ok(secret)

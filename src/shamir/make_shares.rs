@@ -11,7 +11,9 @@ pub fn shamir_split(
     shares: std::num::NonZero<u8>,
     secret: &Zeroizing<[u8; 32]>,
 ) -> Result<Shares, ReconError> {
-    let secret = U512::from_be_slice(secret.as_ref());
+    let mut secret_temp = Zeroizing::new([0u8; 64]);
+    secret_temp.as_mut()[32..].copy_from_slice(secret.as_ref());
+    let secret = U512::from_be_slice(secret_temp.as_ref());
     let prime = make_prime();
     let coeffs = gen_polynomial(&secret, threshold.get() - 1, &prime);
     let mut result: Shares = Shares(Vec::with_capacity(shares.get() as usize));
