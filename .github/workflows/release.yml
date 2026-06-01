@@ -66,7 +66,7 @@ jobs:
 
       - name: Prepare binary
         run: |
-          mkdir dist
+          mkdir -p dist/shardy-${{ matrix.arch }}-${{matrix.os_name}}${{ matrix.suffix }}
           cp target/${{ matrix.target }}/release/shardy* dist/shardy-${{ matrix.arch }}-${{matrix.os_name}}${{ matrix.suffix }}
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
