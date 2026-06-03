@@ -2,18 +2,19 @@ use super::ReconError;
 use super::{make_prime, uint_to_nz_uint};
 use crypto_bigint::U512;
 use std::ops::ShrAssign;
+use zeroize::Zeroizing;
 
 /// Finds the modular inverse of `a` given that `prime` is the modulus.
 /// Uses Fermat's little theorem: a^(p-2) mod p = a^(-1) mod p.
-fn mod_inverse(prime: &U512, a: &U512) -> Result<U512, ReconError> {
+fn mod_inverse(prime: &U512, a: &U512) -> Result<Zeroizing<U512>, ReconError> {
     let mut exp: U512 = *prime - U512::from_u8(2);
     let prime_nz = uint_to_nz_uint(prime)?;
-    let mut result = U512::ONE;
+    let mut result = Zeroizing::new(U512::ONE);
     let mut base = a % prime_nz;
 
     while exp.is_nonzero().to_bool() {
         if exp.is_odd().to_bool() {
-            result = result.mul_mod(&base, &prime_nz);
+            *result = result.mul_mod(&base, &prime_nz);
         }
         base = base.mul_mod(&base, &prime_nz);
         exp.shr_assign(1);
@@ -48,10 +49,11 @@ pub fn reconstruct_secret_mod(shares: &[(u8, U512)], req: u8) -> Result<U512, Re
     let mut secret = U512::ZERO;
 
     for i in 0..n {
-        let (xi, yi) = shares[i];
+        let xi = shares[i].0;
+        let yi = Zeroizing::new(shares[i].1);
         let xi = U512::from_u8(xi);
 
-        let mut term = yi % p;
+        let mut term = *yi % p;
 
         for (j, share) in shares.iter().enumerate() {
             if i != j {
