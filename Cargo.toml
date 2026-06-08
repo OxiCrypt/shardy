@@ -10,4 +10,5 @@ crypto-bigint = {version = "0.7.1", features = ["zeroize"]}
 crypto-common = "0.1.7"
 rand = "0.10.0"
 regex = "1.12.3"
+shardlib = "0.1.0"
 zeroize = { version = "1.8.2", features = ["zeroize_derive"] }
