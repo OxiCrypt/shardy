@@ -552,9 +552,9 @@ dependencies = [
 
 [[package]]
 name = "shardlib"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89a3ae1995bb7aac18bb1b39751b56b09dbec0325b703b281d37ee19c8242a3f"
+checksum = "16d2134c57f3f26466ef246ac8d958c37ebd443ea9fa505accd745ccd07bebcb"
 dependencies = [
  "chacha20poly1305",
  "clap",

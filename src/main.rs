@@ -1,4 +1,5 @@
 #![warn(clippy::pedantic)]
+#![allow(clippy::too_many_lines)]
 mod io;
 use self::EncOrDec::{Decrypt, Encrypt};
 use clap::{Parser, Subcommand};
